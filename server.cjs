@@ -28,7 +28,6 @@ var import_path2 = __toESM(require("path"), 1);
 var import_fs2 = __toESM(require("fs"), 1);
 var import_os = __toESM(require("os"), 1);
 var import_crypto2 = __toESM(require("crypto"), 1);
-var import_vite = require("vite");
 var import_jszip = __toESM(require("jszip"), 1);
 var import_google_auth_library = require("google-auth-library");
 var import_ws2 = require("ws");
@@ -3687,7 +3686,8 @@ data: ${JSON.stringify({ devices: list })}
     });
   });
   if (process.env.NODE_ENV !== "production") {
-    const vite = await (0, import_vite.createServer)({
+    const { createServer: createViteServer } = await import("vite");
+    const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa"
     });
