@@ -2544,12 +2544,12 @@ data: ${JSON.stringify({ deviceId: id, message: "Device disconnected by host" })
         deviceWebSockets.delete(k);
       }
     }
-    const code = deviceToPairingCode.get(id);
-    if (code) {
-      activePairingCodes.delete(code);
-      deviceToPairingCode.delete(id);
-    }
     if (forget) {
+      const code = deviceToPairingCode.get(id);
+      if (code) {
+        activePairingCodes.delete(code);
+        deviceToPairingCode.delete(id);
+      }
       devices.delete(id);
       if (digits) {
         devices.delete(digits);
@@ -2560,9 +2560,7 @@ data: ${JSON.stringify({ deviceId: id, message: "Device disconnected by host" })
     } else if (dev) {
       dev.isPaired = false;
       dev.pairedHostName = void 0;
-      dev.lastSeen = 0;
-      devices.delete(id);
-      broadcastToHosts("device_removed", { deviceId: id });
+      broadcastToHosts("device_update", formatDevice(dev));
     }
     const remaining = Array.from(devices.values()).filter((d) => !isDeviceIdDisconnected(d.id)).map(formatDevice);
     broadcastToHosts("devices_list", { devices: remaining });
@@ -3993,4 +3991,3 @@ data: ${JSON.stringify({ devices: list })}
   });
 }
 startServer();
-//# sourceMappingURL=server.cjs.map
