@@ -72525,9 +72525,11 @@ data: ${JSON.stringify({ devices: list })}
     app.use(vite.middlewares);
   } else {
     const distPath = import_path2.default.join(process.cwd(), "dist");
-    app.use(import_express.default.static(distPath));
+    const rootPath = process.cwd();
+    const staticPath = import_fs2.default.existsSync(distPath) ? distPath : rootPath;
+    app.use(import_express.default.static(staticPath));
     app.get("*", (_req, res) => {
-      res.sendFile(import_path2.default.join(distPath, "index.html"));
+      res.sendFile(import_path2.default.join(staticPath, "index.html"));
     });
   }
   mqttBroker.setCallbacks({
