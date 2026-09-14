@@ -1776,9 +1776,10 @@ class BootReceiver : BroadcastReceiver() {
 // src/server/mqttService.ts
 var import_ws = require("ws");
 var import_aedes = require("aedes");
+var AedesConstructor = import_aedes.Aedes || import_aedes.default || import_aedes;
 var MqttBrokerService = class {
   constructor() {
-    this.broker = new import_aedes.Aedes();
+    this.broker = new AedesConstructor();
     this.wss = new import_ws.WebSocketServer({ noServer: true });
     this.wss.on("connection", (ws) => {
       const stream = (0, import_ws.createWebSocketStream)(ws);
