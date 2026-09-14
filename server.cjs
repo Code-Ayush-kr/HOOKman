@@ -3694,9 +3694,16 @@ data: ${JSON.stringify({ devices: list })}
     app.use(vite.middlewares);
   } else {
     const distPath = import_path2.default.join(process.cwd(), "dist");
-    app.use(import_express.default.static(distPath));
+    const rootPath = process.cwd();
+    const staticDir = import_fs2.default.existsSync(distPath) ? distPath : rootPath;
+    app.use(import_express.default.static(staticDir));
     app.get("*", (_req, res) => {
-      res.sendFile(import_path2.default.join(distPath, "index.html"));
+      const indexPath = import_path2.default.join(staticDir, "index.html");
+      if (import_fs2.default.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).send("Frontend not built. Run npm run build first.");
+      }
     });
   }
   mqttBroker.setCallbacks({
