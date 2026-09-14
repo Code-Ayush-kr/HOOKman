@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta http-equiv="refresh" content="0;url=YOUR_RENDER_URL_HERE"/>
+  <title>Redirecting...</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: #0f172a;
+      color: #fff;
+    }
+    .loader {
+      text-align: center;
+    }
+    .loader h2 {
+      margin-bottom: 8px;
+    }
+    .loader p {
+      color: #94a3b8;
+      font-size: 14px;
+    }
+    a {
+      color: #38bdf8;
+    }
+  </style>
+</head>
+<body>
+  <div class="loader">
+    <h2>DeviceAgent</h2>
+    <p>Redirecting to controller...</p>
+    <p>If not redirected, <a href="YOUR_RENDER_URL_HERE">click here</a></p>
+  </div>
+  <script>
+    window.location.replace("YOUR_RENDER_URL_HERE");
+  </script>
+</body>
+</html>

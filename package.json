@@ -1,0 +1,17 @@
+{
+  "name": "device-agent-server",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node server.cjs"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "ws": "^8.18.0",
+    "aedes": "^0.51.3",
+    "jszip": "^3.10.1",
+    "google-auth-library": "^9.14.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
