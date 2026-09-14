@@ -28,7 +28,7 @@ var import_path2 = __toESM(require("path"), 1);
 var import_fs2 = __toESM(require("fs"), 1);
 var import_os = __toESM(require("os"), 1);
 var import_crypto2 = __toESM(require("crypto"), 1);
-var import_vite = (function() { try { return require("vite"); } catch(e) { return { createServer: null }; } })();
+var import_vite = require("vite");
 var import_jszip = __toESM(require("jszip"), 1);
 var import_google_auth_library = require("google-auth-library");
 var import_ws2 = require("ws");
@@ -1776,10 +1776,9 @@ class BootReceiver : BroadcastReceiver() {
 // src/server/mqttService.ts
 var import_ws = require("ws");
 var import_aedes = require("aedes");
-var AedesConstructor = import_aedes.Aedes || import_aedes.default || import_aedes;
 var MqttBrokerService = class {
   constructor() {
-    this.broker = new AedesConstructor();
+    this.broker = new import_aedes.Aedes();
     this.wss = new import_ws.WebSocketServer({ noServer: true });
     this.wss.on("connection", (ws) => {
       const stream = (0, import_ws.createWebSocketStream)(ws);
@@ -1989,31 +1988,10 @@ var AudioService = class {
 var devices = /* @__PURE__ */ new Map();
 var disconnectedDeviceIds = /* @__PURE__ */ new Set();
 function markDeviceDisconnected(id) {
-  if (id) disconnectedDeviceIds.add(id);
 }
 function unmarkDeviceDisconnected(id) {
-  if (!id) return;
-  disconnectedDeviceIds.delete(id);
-  const digits = id.replace(/[^0-9]/g, "");
-  if (digits) {
-    disconnectedDeviceIds.delete(digits);
-    disconnectedDeviceIds.delete(`device_${digits}`);
-    disconnectedDeviceIds.delete(`phone_${digits}`);
-  }
 }
 function isDeviceIdDisconnected(id) {
-  if (!id) return false;
-  if (disconnectedDeviceIds.has(id)) return true;
-  const digits = id.replace(/[^0-9]/g, "");
-  if (digits) {
-    if (disconnectedDeviceIds.has(digits)) return true;
-    if (disconnectedDeviceIds.has(`device_${digits}`)) return true;
-    if (disconnectedDeviceIds.has(`phone_${digits}`)) return true;
-  }
-  const dev = resolveDevice(id);
-  if (dev && dev.pairingCode && disconnectedDeviceIds.has(dev.pairingCode)) {
-    return true;
-  }
   return false;
 }
 var phoneSSEConnections = /* @__PURE__ */ new Map();
@@ -2023,11 +2001,9 @@ var deviceWss = new import_ws2.WebSocketServer({ noServer: true });
 function getOrCreateDevice(id, name) {
   if (id === "phone_target" || id === "phone_target_1" || id.startsWith("phone_target")) {
     devices.delete(id);
-    return null;
   }
   if (isDeviceIdDisconnected(id)) {
     devices.delete(id);
-    return null;
   }
   let dev = devices.get(id);
   if (!dev) {
@@ -2042,7 +2018,9 @@ function getOrCreateDevice(id, name) {
       lastSeen: Date.now(),
       isPaired: false
     };
-    devices.set(id, dev);
+    if (!isDeviceIdDisconnected(id) && id !== "phone_target" && id !== "phone_target_1" && !id.startsWith("phone_target")) {
+      devices.set(id, dev);
+    }
   } else if (name && name.trim()) {
     dev.name = name.trim();
   }
@@ -2105,6 +2083,7 @@ function resolveDevice(id) {
   return void 0;
 }
 function isDeviceOnline(deviceId) {
+  if (false) return false;
   const dev = resolveDevice(deviceId);
   if (!dev) return false;
   const digits = deviceId.replace(/[^0-9]/g, "");
@@ -2481,14 +2460,7 @@ async function startServer() {
     }
   }));
   function resolveAbsoluteAudioUrl(req, url) {
-    if (!url) return void 0;
-    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
-      return url;
-    }
-    const proto = req.headers["x-forwarded-proto"] || req.protocol || "https";
-    const host = req.headers["x-forwarded-host"] || req.get("host") || "localhost:3000";
-    const cleanPath = url.startsWith("/") ? url : `/${url}`;
-    return `${proto}://${host}${cleanPath}`;
+    return url;
   }
   app.get("/api/health", (_req, res) => {
     res.json({
@@ -2686,13 +2658,6 @@ data: ${JSON.stringify({ deviceId: id, message: "Device deleted by host" })}
       });
     }
     const dev = getOrCreateDevice(id, name);
-    if (!dev) {
-      return res.status(410).json({
-        success: false,
-        disconnected: true,
-        error: "Device has been disconnected and forgotten by the host."
-      });
-    }
     dev.lastSeen = Date.now();
     if (userAgent) dev.userAgent = userAgent;
     if (batteryLevel !== void 0) dev.batteryLevel = batteryLevel;
@@ -3023,7 +2988,6 @@ data: ${JSON.stringify({ deviceId: id, message: "Host disconnected all devices" 
     dev.pairingCode = void 0;
     dev.pairingExpiresAt = void 0;
     activePairingCodes.delete(cleanCode);
-    deviceToPairingCode.delete(entry.deviceId);
     const devWs = deviceWebSockets.get(dev.id);
     if (devWs && devWs.readyState === import_ws2.WebSocket.OPEN) {
       try {
@@ -3188,7 +3152,7 @@ data: ${JSON.stringify({ deviceId: id, message: "Host disconnected all devices" 
   });
   app.post("/api/device/:id/command", async (req, res) => {
     const { id } = req.params;
-    const { action, volume, tone, message, strobe, audioUrl, audioTitle } = req.body;
+    const { action, volume, tone, message, strobe, audioUrl, audioTitle, loop } = req.body;
     if (!action) {
       return res.status(400).json({ error: "Command action is required" });
     }
@@ -3212,7 +3176,8 @@ data: ${JSON.stringify({ deviceId: id, message: "Host disconnected all devices" 
       strobe: strobe ?? (action === "siren" || action === "play_sound" ? true : false),
       timestamp: Date.now(),
       audioUrl: resolvedAudio || void 0,
-      audioTitle: audioTitle || void 0
+      audioTitle: audioTitle || void 0,
+      loop: typeof loop === "boolean" ? loop : void 0
     };
     dev.lastCommand = command;
     if (action === "mute" || action === "stop") {
@@ -3245,7 +3210,8 @@ data: ${JSON.stringify({ deviceId: id, message: "Host disconnected all devices" 
     if (tone) dev.activeTone = tone;
     if (strobe !== void 0) dev.strobeActive = strobe;
     const dispatched = sendToDevice(id, command);
-    const fcmResult = await dispatchFcmPush(dev, command);
+    dispatchFcmPush(dev, command).catch(() => {
+    });
     const mqttCmd = action === "sound_full" || action === "siren" || action === "play_sound" ? "max_volume" : action;
     mqttBroker.publishCommand(id, mqttCmd);
     const formattedDev = formatDevice(dev);
@@ -3254,7 +3220,7 @@ data: ${JSON.stringify({ deviceId: id, message: "Host disconnected all devices" 
       success: true,
       commandId,
       dispatchedClients: dispatched,
-      fcmStatus: fcmResult.status,
+      fcmStatus: "pending",
       isOnline: online || dispatched > 0,
       queued: dispatched === 0,
       message: dispatched > 0 ? "Command sent to active connection" : "Command queued for device check-in",
@@ -3262,7 +3228,7 @@ data: ${JSON.stringify({ deviceId: id, message: "Host disconnected all devices" 
     });
   });
   app.post("/api/devices/broadcast", async (req, res) => {
-    const { action, volume, tone, message, strobe, audioUrl, audioTitle, targetIds } = req.body;
+    const { action, volume, tone, message, strobe, audioUrl, audioTitle, targetIds, loop } = req.body;
     if (!action) {
       return res.status(400).json({ error: "Action is required for broadcast" });
     }
@@ -3290,7 +3256,8 @@ data: ${JSON.stringify({ deviceId: id, message: "Host disconnected all devices" 
         strobe: strobe ?? (action === "siren" || action === "play_sound"),
         timestamp: Date.now(),
         audioUrl: resolvedAudio || void 0,
-        audioTitle
+        audioTitle,
+        loop: typeof loop === "boolean" ? loop : void 0
       };
       dev.lastCommand = cmd;
       if (action === "sound_full" || action === "play_sound") {
@@ -3451,24 +3418,8 @@ data: ${JSON.stringify({ deviceId: id, message: "Host disconnected all devices" 
     if (!code) return res.status(400).json({ error: "6-digit code is required" });
     const cleanCode = String(code).trim().replace(/[^0-9]/g, "");
     const dId = (deviceId || `phone_${cleanCode}`).trim();
-    if (isDeviceIdDisconnected(dId) && !manual) {
-      return res.status(410).json({
-        success: false,
-        disconnected: true,
-        error: "Device was disconnected by host."
-      });
-    }
-    if (manual) {
-      unmarkDeviceDisconnected(dId);
-    }
+    unmarkDeviceDisconnected(dId);
     const dev = getOrCreateDevice(dId, deviceName || `Android Phone (${cleanCode.slice(0, 3)}-${cleanCode.slice(3)})`);
-    if (!dev) {
-      return res.status(410).json({
-        success: false,
-        disconnected: true,
-        error: "Device was disconnected by host."
-      });
-    }
     dev.pairingCode = cleanCode;
     dev.lastSeen = Date.now();
     dev.isNativeApk = true;
@@ -3552,9 +3503,8 @@ data: ${JSON.stringify({ deviceId: id, message: "Host disconnected all devices" 
     }
     if (!dev && realDeviceId) {
       dev = getOrCreateDevice(realDeviceId, req.body?.name || `Android Phone (${cleanCode.slice(0, 3)}-${cleanCode.slice(3)})`);
-      if (dev) {
+      if (!dev.isPaired && !dev.pairingCode) {
         dev.pairingCode = cleanCode;
-        dev.isNativeApk = true;
         activePairingCodes.set(cleanCode, {
           code: cleanCode,
           deviceId: realDeviceId,
@@ -3564,24 +3514,23 @@ data: ${JSON.stringify({ deviceId: id, message: "Host disconnected all devices" 
         });
         deviceToPairingCode.set(realDeviceId, cleanCode);
       }
+      dev.isNativeApk = true;
     }
     if (dev && realDeviceId && dev.id !== realDeviceId) {
       const isPairedState = dev.isPaired;
       const hostName = dev.pairedHostName;
+      const existingPairingCode = dev.pairingCode;
       devices.delete(dev.id);
       dev = getOrCreateDevice(realDeviceId, req.body?.name || dev.name);
-      dev.pairingCode = cleanCode;
+      if (!dev.pairingCode && existingPairingCode) {
+        dev.pairingCode = existingPairingCode;
+      }
       dev.isNativeApk = true;
       dev.isPaired = isPairedState;
       dev.pairedHostName = hostName;
-      activePairingCodes.set(cleanCode, {
-        code: cleanCode,
-        deviceId: realDeviceId,
-        deviceName: dev.name,
-        createdAt: Date.now(),
-        expiresAt: Date.now() + 24 * 3600 * 1e3
-      });
-      deviceToPairingCode.set(realDeviceId, cleanCode);
+      if (!deviceToPairingCode.has(realDeviceId)) {
+        deviceToPairingCode.set(realDeviceId, cleanCode);
+      }
     }
     if (!dev) {
       return res.status(410).json({
@@ -3614,7 +3563,7 @@ data: ${JSON.stringify({ deviceId: id, message: "Host disconnected all devices" 
     res.json({
       success: true,
       deviceId: dev.id,
-      code: cleanCode,
+      code: dev.pairingCode || cleanCode,
       isPaired: Boolean(dev.isPaired),
       pairedHostName: dev.pairedHostName || "Web Controller",
       command: commandsToDeliver[0] || null,
@@ -3673,6 +3622,7 @@ data: ${JSON.stringify({ deviceId: id, message: "Host disconnected all devices" 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders?.();
     res.write(":" + " ".repeat(2048) + "\n\n");
     if (disconnectedDeviceIds.has(id)) {
@@ -3719,6 +3669,7 @@ data: ${JSON.stringify(dev.pendingCommand)}
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders?.();
     res.write(":" + " ".repeat(2048) + "\n\n");
     hostSSEConnections.add(res);
@@ -3735,9 +3686,6 @@ data: ${JSON.stringify({ devices: list })}
       hostSSEConnections.delete(res);
     });
   });
-  app.all("/api/*", (_req, res) => {
-    res.status(404).json({ error: "API endpoint not found", path: _req.originalUrl });
-  });
   if (process.env.NODE_ENV !== "production") {
     const vite = await (0, import_vite.createServer)({
       server: { middlewareMode: true },
@@ -3746,12 +3694,9 @@ data: ${JSON.stringify({ devices: list })}
     app.use(vite.middlewares);
   } else {
     const distPath = import_path2.default.join(process.cwd(), "dist");
-    const rootPath = process.cwd();
-    const useDist = import_fs2.default.existsSync(distPath) && import_fs2.default.existsSync(import_path2.default.join(distPath, "index.html"));
-    const staticPath = useDist ? distPath : rootPath;
-    app.use(import_express.default.static(staticPath));
+    app.use(import_express.default.static(distPath));
     app.get("*", (_req, res) => {
-      res.sendFile(import_path2.default.join(staticPath, "index.html"));
+      res.sendFile(import_path2.default.join(distPath, "index.html"));
     });
   }
   mqttBroker.setCallbacks({
@@ -3794,9 +3739,8 @@ data: ${JSON.stringify({ devices: list })}
       });
     },
     onStatus: (deviceId, data) => {
-      if (isDeviceIdDisconnected(deviceId)) return;
+      if (false) return;
       const dev = getOrCreateDevice(deviceId);
-      if (!dev) return;
       dev.lastSeen = Date.now();
       if (data.batteryLevel !== void 0) dev.batteryLevel = data.batteryLevel;
       if (data.isCharging !== void 0) dev.isCharging = data.isCharging;
@@ -3829,12 +3773,6 @@ data: ${JSON.stringify({ devices: list })}
         }
         deviceWebSockets.set(currentDeviceId, ws);
         const dev = getOrCreateDevice(currentDeviceId);
-        if (!dev) {
-          ws.send(JSON.stringify({ type: "disconnected", deviceId: currentDeviceId, reason: "disconnected_by_host" }));
-          ws.close(1008, "Device disconnected by host");
-          deviceWebSockets.delete(currentDeviceId);
-          return;
-        }
         dev.lastSeen = Date.now();
         dev.isNativeApk = true;
         let code = deviceToPairingCode.get(currentDeviceId);
@@ -3893,12 +3831,6 @@ data: ${JSON.stringify({ devices: list })}
           deviceWebSockets.set(currentDeviceId, ws);
           const wasOnline = isDeviceOnline(currentDeviceId);
           const dev = getOrCreateDevice(currentDeviceId, msg.name);
-          if (!dev) {
-            ws.send(JSON.stringify({ type: "disconnected", deviceId: currentDeviceId, reason: "disconnected_by_host" }));
-            ws.close(1008, "Device disconnected by host");
-            deviceWebSockets.delete(currentDeviceId);
-            return;
-          }
           dev.lastSeen = Date.now();
           dev.isNativeApk = true;
           if (!wasOnline) {
@@ -3974,6 +3906,37 @@ data: ${JSON.stringify({ devices: list })}
               device: formatted
             });
             broadcastToHosts("device_update", formatted);
+          }
+        } else if (msg.type === "unpair") {
+          if (currentDeviceId && true) {
+            const dev = devices.get(currentDeviceId);
+            if (dev) {
+              dev.isPaired = false;
+              dev.pairedAt = void 0;
+              dev.pairedHostName = void 0;
+              let code = deviceToPairingCode.get(currentDeviceId);
+              if (!code) {
+                code = generatePairingCode();
+                const now = Date.now();
+                activePairingCodes.set(code, {
+                  code,
+                  deviceId: currentDeviceId,
+                  deviceName: dev.name,
+                  createdAt: now,
+                  expiresAt: now + 24 * 3600 * 1e3
+                });
+                deviceToPairingCode.set(currentDeviceId, code);
+                dev.pairingCode = code;
+              }
+              ws.send(JSON.stringify({
+                type: "registered",
+                deviceId: currentDeviceId,
+                code,
+                formattedCode: `${code.slice(0, 3)} - ${code.slice(3)}`,
+                isPaired: false
+              }));
+              broadcastToHosts("device_update", formatDevice(dev));
+            }
           }
         } else if (msg.type === "ping") {
           ws.send(JSON.stringify({ type: "pong", timestamp: Date.now() }));
