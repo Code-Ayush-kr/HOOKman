@@ -71366,7 +71366,11 @@ data: ${JSON.stringify({ deviceId: id, message: "Device disconnected by host" })
       dev.isPaired = false;
       dev.pairedHostName = void 0;
       dev.lastSeen = 0;
+<<<<<<< HEAD
       dev.pairingCode = void 0;
+=======
+      devices.delete(id);
+>>>>>>> parent of 51a76d4 (build 2.3)
       broadcastToHosts("device_removed", { deviceId: id });
     }
     const remaining = Array.from(devices.values()).filter((d) => d.isPaired).map(formatDevice);
@@ -72825,6 +72829,7 @@ data: ${JSON.stringify({ devices: list })}
   });
 }
 startServer();
+<<<<<<< HEAD
 /*! Bundled license information:
 
 depd/index.js:
@@ -73148,3 +73153,6 @@ formdata-polyfill/esm.min.js:
 node-domexception/index.js:
   (*! node-domexception. MIT License. Jimmy Wärting <https://jimmy.warting.se/opensource> *)
 */
+=======
+//# sourceMappingURL=server.cjs.map
+>>>>>>> parent of 51a76d4 (build 2.3)
