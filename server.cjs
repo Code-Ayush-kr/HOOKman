@@ -183994,6 +183994,10 @@ data: ${JSON.stringify({ deviceId: id3, message: "Host disconnected all devices"
       dev.soundMode = "full";
       dev.volume = 100;
       dev.strobeActive = false;
+    } else if (action === "dnd") {
+      dev.soundMode = "silent";
+      dev.volume = 0;
+      dev.strobeActive = false;
     } else if (action === "set_volume") {
       const volNum = Math.max(0, Math.min(100, Number(volume ?? 0)));
       dev.volume = volNum;
@@ -184057,7 +184061,7 @@ data: ${JSON.stringify({ deviceId: id3, message: "Host disconnected all devices"
         dev.soundMode = "full";
         dev.volume = 100;
         dev.strobeActive = true;
-      } else if (action === "mute" || action === "stop") {
+      } else if (action === "mute" || action === "stop" || action === "dnd") {
         dev.soundMode = "silent";
         dev.volume = 0;
         dev.strobeActive = false;
@@ -184372,8 +184376,9 @@ data: ${JSON.stringify({ deviceId: id3, message: "Host disconnected all devices"
     else if (action === "siren" || action === "alarm") mappedAction = "siren";
     else if (action === "emergency_siren" || action === "sharp") mappedAction = "emergency_siren";
     else if (action === "volume_boost" || action === "boost") mappedAction = "volume_boost";
+    else if (action === "dnd" || action === "do_not_disturb") mappedAction = "dnd";
     else {
-      return res.status(400).json({ error: "Unknown action. Use full, mute, vibrate, siren, emergency_siren, or volume_boost" });
+      return res.status(400).json({ error: "Unknown action. Use full, mute, dnd, vibrate, siren, emergency_siren, or volume_boost" });
     }
     const dev = resolveDevice(id3) || getOrCreateDevice(id3);
     const commandId = `webhook_${Date.now()}`;
@@ -184406,6 +184411,10 @@ data: ${JSON.stringify({ deviceId: id3, message: "Host disconnected all devices"
     } else if (mappedAction === "volume_boost") {
       dev.soundMode = "full";
       dev.volume = 100;
+      dev.strobeActive = false;
+    } else if (mappedAction === "dnd") {
+      dev.soundMode = "silent";
+      dev.volume = 0;
       dev.strobeActive = false;
     }
     const sent = sendToPhone(id3, "command", command);
